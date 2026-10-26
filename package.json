@@ -1,0 +1,19 @@
+{
+  "name": "@proofline/mcp",
+  "version": "0.1.0",
+  "description": "Connect coding agents to Proofline's hosted MCP tools over stdio",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "https://github.com/prooflinedev/mcp.git" },
+  "homepage": "https://github.com/prooflinedev/mcp#readme",
+  "keywords": ["proofline", "mcp", "code-review", "coding-agents"],
+  "engines": { "node": ">=22" },
+  "bin": { "proofline-mcp": "src/cli.js" },
+  "files": ["src"],
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node --check src/cli.js && node --check src/bridge.js",
+    "test:package": "node scripts/packed-smoke.js"
+  },
+  "publishConfig": { "access": "public" }
+}
