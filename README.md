@@ -100,6 +100,4 @@ The initial package registration must exist on npm before configuring its truste
 publisher. Release tags use `v` followed by the version in `package.json`.
 A manual Release run defaults to qualification without publication.
 
-The server contract and live client qualification are maintained in
-[the developer tools documentation](https://proofline.sh/docs/) and
-[the MCP roadmap issue](https://github.com/prooflinedev/proofline/issues/3246).
+See the [developer tools documentation](https://proofline.sh/docs/) for the hosted API.
