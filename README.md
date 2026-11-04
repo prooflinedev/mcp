@@ -3,6 +3,10 @@
 Connect a coding agent to Proofline's hosted MCP server with `npx -y @proofline/mcp`.
 Requires Node.js 22 or later. No CLI installation or runtime dependencies are needed.
 
+## Contributing
+
+This repository distributes the Proofline MCP bridge. The bridge discovers tools from the hosted MCP server at runtime. Open an issue for changes to the tool catalog or tool behavior. Pull requests are welcome for the hand-written bridge in `src/`, package scripts in `scripts/`, and tests in `tests/`.
+
 ## Add to your agent
 
 Add this entry to an agent's MCP configuration, such as Cursor's `.cursor/mcp.json`
@@ -96,6 +100,4 @@ The initial package registration must exist on npm before configuring its truste
 publisher. Release tags use `v` followed by the version in `package.json`.
 A manual Release run defaults to qualification without publication.
 
-The server contract and live client qualification are maintained in
-[the developer tools documentation](https://proofline.sh/docs/) and
-[the MCP roadmap issue](https://github.com/prooflinedev/proofline/issues/3246).
+See the [developer tools documentation](https://proofline.sh/docs/) for the hosted API.
