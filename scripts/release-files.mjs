@@ -32,7 +32,28 @@ async function published() {
 }
 
 if (mode === "select") {
-  console.log((await published()) ? "present" : "missing");
+  if (await published()) {
+    console.log("present");
+  } else {
+    const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}/latest`, {
+      signal: AbortSignal.timeout(30000),
+    });
+    if (response.ok) {
+      const latest = await response.json();
+      if (latest.name !== name || !/^\d+\.\d+\.\d+$/.test(latest.version)) {
+        throw new Error("Unexpected npm latest release");
+      }
+      const wanted = version.split(".").map(Number);
+      const current = latest.version.split(".").map(Number);
+      const index = current.findIndex((value, i) => value !== wanted[i]);
+      if (index === -1 || current[index] > wanted[index]) {
+        throw new Error("Refusing to move the npm latest tag back to an older release");
+      }
+    } else if (response.status !== 404) {
+      throw new Error(`npm latest lookup returned HTTP ${response.status}`);
+    }
+    console.log("missing");
+  }
 } else {
   for (let attempt = 0; !(await published()); attempt++) {
     if (attempt === 5) throw new Error("Published npm tarball is missing");
