@@ -38,7 +38,7 @@ jobs:
     if: github.event_name == 'push' || inputs.publish
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
     environment: npm
     permissions:
       contents: read
@@ -61,4 +61,20 @@ jobs:
           echo "state=$state" >> "$GITHUB_OUTPUT"
       - if: steps.select.outputs.state == 'missing'
         run: npm publish ./artifacts/*.tgz --access public --provenance --ignore-scripts
+      - name: Wait for npm to serve the published version
+        if: steps.select.outputs.state == 'missing'
+        timeout-minutes: 22
+        run: |
+          url=$(node -p '"https://registry.npmjs.org/" + encodeURIComponent(require("./package.json").name) + "/" + require("./package.json").version')
+          deadline=$((SECONDS + 1200))
+          while true; do
+            status=$(curl --silent --show-error --max-time 20 --output /dev/null --write-out '%{http_code}' "$url") || status=000
+            case "$status" in
+              200) break ;;
+              000|404|429|5??) echo "Waiting for npm to serve the published version (HTTP $status)" ;;
+              *) echo "Unexpected npm registry response (HTTP $status)" >&2; exit 1 ;;
+            esac
+            if (( SECONDS >= deadline )); then exit 1; fi
+            sleep 15
+          done
       - run: node scripts/release-files.mjs verify artifacts
