@@ -1,6 +1,7 @@
 # Proofline MCP
 
 [![Listed on clauderules.net](https://clauderules.net/api/badge/proofline-jano)](https://clauderules.net/mcp/proofline-jano)
+[![AllMCPs Verified](https://allmcps.com/api/badge/proofline)](https://allmcps.com/mcp/proofline?verify=ba98ddfd-7072-4e8b-8a59-4d790121f66a)
 
 Connect a coding agent to Proofline's hosted MCP server over local stdio with `npx -y @proofline/mcp`. The package requires Node.js 22 or later and needs no CLI installation or runtime dependencies. Agents with remote HTTP and OAuth support can connect directly to `https://proofline.sh/mcp` instead; this package supplies the local stdio option. See the [developer tools documentation](https://proofline.sh/docs/) for the hosted API.
 
