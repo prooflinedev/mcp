@@ -1,5 +1,7 @@
 # Proofline MCP
 
+[![Listed on clauderules.net](https://clauderules.net/api/badge/proofline-jano)](https://clauderules.net/mcp/proofline-jano)
+
 Connect a coding agent to Proofline's hosted MCP server over local stdio with `npx -y @proofline/mcp`. The package requires Node.js 22 or later and needs no CLI installation or runtime dependencies. Agents with remote HTTP and OAuth support can connect directly to `https://proofline.sh/mcp` instead; this package supplies the local stdio option. See the [developer tools documentation](https://proofline.sh/docs/) for the hosted API.
 
 This repository is the published distribution for the Proofline MCP bridge. The bridge discovers tools from the hosted MCP server at runtime. Pull requests are welcome for the hand-written bridge in `src/`, package scripts in `scripts/`, and tests in `tests/`. Open an [issue](https://github.com/prooflinedev/mcp/issues) for changes to the tool catalog, tool behavior, or workflows.
