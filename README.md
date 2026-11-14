@@ -51,6 +51,13 @@ The bridge supports Proofline's stateless JSON transport with protocol `2025-11-
 
 ## Development and releases
 
+The hosted endpoint's Official MCP Registry entry is maintained in `server.json`.
+Run the **Publish MCP Registry** workflow from `main` after reviewing a metadata
+change. It validates the file and publishes with GitHub OIDC; no stored registry
+token is needed. Published versions are immutable, so increment the registry
+version before publishing changed metadata. This workflow does not publish the
+npm bridge.
+
 Run the verification suite locally before submitting a pull request:
 
 ```sh
