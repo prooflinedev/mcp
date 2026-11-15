@@ -12,7 +12,7 @@
   "files": ["src"],
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check src/cli.js && node --check src/bridge.js",
+    "check": "node --check src/cli.js && node --check src/bridge.js && node --check src/trace.js",
     "test:package": "node scripts/packed-smoke.js"
   },
   "publishConfig": { "access": "public" }

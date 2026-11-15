@@ -51,7 +51,9 @@ async function* frames(input) {
 }
 
 async function send(output, message) {
-  if (!output.write(`${JSON.stringify(message)}\n`)) await once(output, "drain");
+  const line = `${JSON.stringify(message)}\n`;
+  if (!output.write(line)) await once(output, "drain");
+  return Buffer.byteLength(line) - 1;
 }
 
 async function post(frame, config, protocol, notification) {
@@ -106,13 +108,27 @@ function failure(error, id) {
 }
 
 /** Serial, bounded bridge for Proofline's stateless JSON MCP endpoint. Never retries. */
-export async function bridge(input, output, diagnostic, config) {
+export async function bridge(input, output, diagnostic, config, trace) {
   let protocol;
   let ready = false;
   let id = null;
   let notification = false;
+  let entry = {};
+  // Traces the message in hand once it is answered: what was asked and how it
+  // ended, never parameters, results, ids or upstream text. A trace that fails
+  // stops, and the session goes on.
+  const record = (outcome, detail) => {
+    try {
+      trace?.({ ...entry, outcome, ...detail });
+    } catch {
+      trace = undefined;
+      diagnostic.write("Proofline MCP trace failure. Tracing stopped.\n");
+    }
+    entry = {};
+  };
   try {
     for await (const frame of frames(input)) {
+      entry.request_bytes = frame.length;
       let request;
       try {
         request = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(frame));
@@ -125,6 +141,8 @@ export async function bridge(input, output, diagnostic, config) {
       }
       notification = !("id" in request);
       id = notification ? null : request.id;
+      entry.method = request.method;
+      if (request.method === "tools/call") entry.tool = request.params?.name;
       const initializing = request.method === "initialize";
       const initialized = request.method === "notifications/initialized";
       if (initializing ? protocol || notification :
@@ -134,15 +152,19 @@ export async function bridge(input, output, diagnostic, config) {
         // `server/discover`. Refuse that message and keep the session. MCP
         // allows `ping` at any time, but the server refuses requests without
         // a negotiated version, so an early ping is answered here.
+        const pong = !notification && !protocol && request.method === "ping";
         if (!notification) {
-          await send(output, !protocol && request.method === "ping" ?
+          entry.response_bytes = await send(output, pong ?
             { jsonrpc: "2.0", id, result: {} } : failure(new BridgeError("lifecycle"), id));
         }
+        record(pong ? "ok" : "refused");
         id = null;
         notification = false;
         continue;
       }
-      const response = await post(frame, config, protocol, notification);
+      const started = performance.now();
+      const response = await post(frame, config, protocol, notification)
+        .finally(() => { entry.duration_ms = Math.round(performance.now() - started); });
       if (!notification) {
         if (!object(response) || response.jsonrpc !== "2.0" || response.id !== id ||
             ("result" in response) === ("error" in response) ||
@@ -155,9 +177,11 @@ export async function bridge(input, output, diagnostic, config) {
           if (response.result.protocolVersion !== PROTOCOL) throw new BridgeError("lifecycle");
           protocol = PROTOCOL;
         }
-        await send(output, response);
+        entry.response_bytes = await send(output, response);
       }
       if (initialized) ready = true;
+      record(response?.error ? "rpc_error" : response?.result.isError === true ? "tool_error" : "ok",
+        { rpc_code: response?.error?.code });
       id = null;
       notification = false;
     }
@@ -166,9 +190,10 @@ export async function bridge(input, output, diagnostic, config) {
     const safe = error instanceof BridgeError ? error : new BridgeError("transport");
     if (!notification) {
       try {
-        await send(output, failure(safe, id));
+        entry.response_bytes = await send(output, failure(safe, id));
       } catch { /* A closed output cannot receive the failure. */ }
     }
+    record(safe.category, { http_status: safe.status });
     diagnostic.write(`${safe.message}\n`);
     return 1;
   }
