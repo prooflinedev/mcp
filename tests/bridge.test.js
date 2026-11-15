@@ -98,11 +98,14 @@ test("HTTP refusals, redirects and malformed responses fail once without leaking
 
 test("invalid frames and lifecycle never reach the server", async (t) => {
   const fixture = await server(t, () => assert.fail("unexpected request"));
-  for (const input of ["{\n", JSON.stringify(call) + "\n", " ".repeat(8193) + "\n", JSON.stringify(initialize), "[]\n"]) {
+  for (const input of ["{\n", " ".repeat(8193) + "\n", JSON.stringify(initialize), "[]\n"]) {
     const outcome = await run(fixture.origin, input);
     assert.equal(outcome.code, 1);
     assert.equal(outcome.responses.length, 1);
   }
+  const early = await run(fixture.origin, [call]);
+  assert.equal(early.code, 0, "a lifecycle refusal is not fatal");
+  assert.equal(early.responses[0].error.data.category, "lifecycle");
   assert.equal(fixture.requests.length, 0);
   for (const env of [{ PROOFLINE_TOKEN: "" }, { PROOFLINE_BASE_URL: "http://example.com" }, { PROOFLINE_BASE_URL: "https://user:private-upstream-canary@example.com" }]) {
     const outcome = await run(fixture.origin, "", env);
@@ -110,4 +113,25 @@ test("invalid frames and lifecycle never reach the server", async (t) => {
     assert.equal(outcome.responses.length, 0);
     assert.ok(!outcome.stderr.includes("private-upstream-canary"));
   }
+});
+
+test("pre-initialize probes are answered without ending the session", async (t) => {
+  const tools = { tools: [] };
+  const fixture = await server(t, (body, response) => json(response, { jsonrpc: "2.0", id: body.id, result: tools }));
+  const outcome = await run(fixture.origin, [
+    { jsonrpc: "2.0", id: "server-discover-probe-1", method: "server/discover" },
+    { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: "server-discover-probe-1" } },
+    { jsonrpc: "2.0", id: "early-ping", method: "ping" },
+    initialize, notification, { jsonrpc: "2.0", id: 3, method: "tools/list" },
+  ]);
+  assert.equal(outcome.code, 0);
+  assert.equal(outcome.stderr, "");
+  assert.equal(outcome.responses.length, 4);
+  assert.equal(outcome.responses[0].id, "server-discover-probe-1");
+  assert.equal(outcome.responses[0].error.code, -32000);
+  assert.equal(outcome.responses[0].error.data.category, "lifecycle");
+  assert.deepEqual(outcome.responses[1], { jsonrpc: "2.0", id: "early-ping", result: {} });
+  assert.equal(outcome.responses[2].id, "init");
+  assert.deepEqual(outcome.responses[3], { jsonrpc: "2.0", id: 3, result: tools });
+  assert.deepEqual(fixture.requests.map((request) => request.method), ["initialize", "notifications/initialized", "tools/list"]);
 });

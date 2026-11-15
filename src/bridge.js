@@ -98,6 +98,13 @@ async function post(frame, config, protocol, notification) {
   }
 }
 
+function failure(error, id) {
+  return { jsonrpc: "2.0", id, error: {
+    code: error.code, message: error.message,
+    data: { category: error.category, ...(error.status ? { http_status: error.status } : {}) },
+  } };
+}
+
 /** Serial, bounded bridge for Proofline's stateless JSON MCP endpoint. Never retries. */
 export async function bridge(input, output, diagnostic, config) {
   let protocol;
@@ -123,7 +130,17 @@ export async function bridge(input, output, diagnostic, config) {
       if (initializing ? protocol || notification :
           initialized ? !protocol || ready || !notification :
           !ready && !(protocol && request.method === "ping" && !notification)) {
-        throw new BridgeError("lifecycle");
+        // A client may probe before the handshake, as Claude Code does with
+        // `server/discover`. Refuse that message and keep the session. MCP
+        // allows `ping` at any time, but the server refuses requests without
+        // a negotiated version, so an early ping is answered here.
+        if (!notification) {
+          await send(output, !protocol && request.method === "ping" ?
+            { jsonrpc: "2.0", id, result: {} } : failure(new BridgeError("lifecycle"), id));
+        }
+        id = null;
+        notification = false;
+        continue;
       }
       const response = await post(frame, config, protocol, notification);
       if (!notification) {
@@ -149,10 +166,7 @@ export async function bridge(input, output, diagnostic, config) {
     const safe = error instanceof BridgeError ? error : new BridgeError("transport");
     if (!notification) {
       try {
-        await send(output, { jsonrpc: "2.0", id, error: {
-          code: safe.code, message: safe.message,
-          data: { category: safe.category, ...(safe.status ? { http_status: safe.status } : {}) },
-        } });
+        await send(output, failure(safe, id));
       } catch { /* A closed output cannot receive the failure. */ }
     }
     diagnostic.write(`${safe.message}\n`);
