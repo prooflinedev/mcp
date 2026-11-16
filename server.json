@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.prooflinedev/proofline",
   "title": "Proofline",
-  "description": "Read Proofline review status, findings and review guidance, and request or rerun reviews.",
-  "version": "0.1.0",
+  "description": "Set up Proofline, read and change settings with admin approval, and read, request and fix reviews.",
+  "version": "0.1.1",
   "websiteUrl": "https://proofline.sh",
   "remotes": [
     {
