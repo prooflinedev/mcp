@@ -135,3 +135,41 @@ test("pre-initialize probes are answered without ending the session", async (t) 
   assert.deepEqual(outcome.responses[3], { jsonrpc: "2.0", id: 3, result: tools });
   assert.deepEqual(fixture.requests.map((request) => request.method), ["initialize", "notifications/initialized", "tools/list"]);
 });
+
+test("JSON Content-Type is compared case-insensitively, including a charset parameter", async (t) => {
+  const tools = { tools: [] };
+  const result = { content: [{ type: "text", text: "ok" }] };
+  const fixture = await server(t, (body, response) => {
+    const type = body.method === "tools/list"
+      ? "Application/JSON"
+      : "APPLICATION/JSON; charset=utf-8";
+    response.writeHead(200, { "content-type": type });
+    response.end(JSON.stringify({
+      jsonrpc: "2.0",
+      id: body.id,
+      result: body.method === "tools/list" ? tools : result,
+    }));
+  });
+  const outcome = await run(fixture.origin, [
+    initialize, notification,
+    { jsonrpc: "2.0", id: 3, method: "tools/list" },
+    call,
+  ]);
+  assert.equal(outcome.code, 0);
+  assert.equal(outcome.stderr, "");
+  assert.deepEqual(outcome.responses[1].result, tools);
+  assert.deepEqual(outcome.responses[2].result, result);
+});
+
+test("SSE Content-Type is still refused when the media type differs only by case", async (t) => {
+  const fixture = await server(t, (_body, response) => {
+    response.writeHead(200, { "content-type": "TEXT/EVENT-STREAM" });
+    return response.end("private-upstream-canary");
+  });
+  const outcome = await run(fixture.origin, [initialize, notification, call]);
+  assert.equal(outcome.code, 1);
+  assert.equal(outcome.responses.at(-1).error.code, -32000);
+  assert.equal(outcome.responses.at(-1).error.data.category, "transport");
+  assert.ok(!JSON.stringify(outcome).includes("private-upstream-canary"));
+});
+
