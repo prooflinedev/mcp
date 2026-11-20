@@ -5,6 +5,8 @@ const REQUEST_LIMIT = 8192;
 const RESPONSE_LIMIT = 8 * 1024 * 1024;
 const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const identity = (value) => typeof value === "string" || Number.isSafeInteger(value);
+// RFC 9110: media types are case-insensitive. Parameters after ';' are ignored.
+const mediaType = (value) => value?.split(";")[0].trim().toLowerCase();
 
 class BridgeError extends Error {
   constructor(category, code = -32000, status) {
@@ -75,7 +77,7 @@ async function post(frame, config, protocol, notification) {
       throw new BridgeError("http", -32000, response.status);
     }
     if (response.headers.has("mcp-session-id") || (!notification &&
-        response.headers.get("content-type")?.split(";")[0].trim() !== "application/json")) {
+        mediaType(response.headers.get("content-type")) !== "application/json")) {
       await response.body?.cancel();
       throw new BridgeError("transport");
     }
